@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using System.IO;
 
 namespace Painting64 {
@@ -130,7 +131,8 @@ namespace Painting64 {
     }
 
     public static void Main(string[] args) {
-      
+      Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
+      Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
 
       samplePaintingBinaryDump = samplePaintingBinaryDump.Replace(" ", "");
       byte[] samplePaintingBinary = new byte[samplePaintingBinaryDump.Length / 2];
