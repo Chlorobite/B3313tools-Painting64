@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Threading;
-using System.IO;
+﻿using System.Globalization;
 
 namespace Painting64 {
   class Painting {
@@ -104,8 +100,8 @@ namespace Painting64 {
 
   class MainClass {
     public const uint SEG0E_RAM_START = 0x80420000;
-    public const int PAINTING_ARRAY_START = 0x3E0BC0;
-    public const byte MAX_PAINTING_COUNT = 128;
+    public const int PAINTING_ARRAY_START = 0x3DB2BC;
+    public const int MAX_PAINTING_COUNT = 256;
 
     static string samplePaintingBinaryDump = "00000200 00000000 00000000 42B40000 C539F000 42800000 44AA4000 00000000 41A00000 42A00000 3F800000 3F75F6FD 3F73D07D 00000000 3E75C28F 3E0F5C29 00000000 42200000 41F00000 00000000 00000000 00000000 8056BE60 8056BE40 8056FDA0 00400020 8056BE60 0AFF0000 00000000 44198000 0E00E420 0E00D420";
 
@@ -130,7 +126,7 @@ namespace Painting64 {
       return (uint)((binary[0] << 24) + (binary[1] << 16) + (binary[2] << 8) + binary[3]);
     }
 
-    public static void Main(string[] args) {
+    static void _Main(string[] args) {
       Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
       Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
 
@@ -350,9 +346,22 @@ namespace Painting64 {
       foreach (Painting painting in paintings) {
         writer.Write(GetU32Bytes(SEG0E_RAM_START + (painting.segmentedAddress & 0x00FFFFFF)));
       }
+      writer.Write(GetU32Bytes(0));
       writer.Close();
 
       Console.WriteLine($"Paintings successfully written to {romFile}!");
+    }
+
+    public static void Main(string[] args) {
+      try {
+        _Main(args);
+      }
+      catch (Exception e) {
+        Console.WriteLine("fatal error\n" + e);
+      }
+
+      Console.WriteLine("Press any key to exit");
+      Console.ReadKey(true);
     }
   }
 }
