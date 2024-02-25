@@ -127,8 +127,9 @@ namespace Painting64 {
     }
 
     static void _Main(string[] args) {
-      Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
-      Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
+      CultureInfo cult = CultureInfo.GetCultureInfo("en-US");
+      Thread.CurrentThread.CurrentCulture = cult;
+      Thread.CurrentThread.CurrentUICulture = cult;
 
       samplePaintingBinaryDump = samplePaintingBinaryDump.Replace(" ", "");
       byte[] samplePaintingBinary = new byte[samplePaintingBinaryDump.Length / 2];
@@ -208,32 +209,32 @@ namespace Painting64 {
                 currentPainting.textureSegmentedAddress2 = uint.Parse(value);
                 break;
               case "rotation":
-                currentPainting.yaw = float.Parse(value);
+                currentPainting.yaw = float.Parse(value, cult);
                 break;
               case "x":
               case "posx":
               case "xpos":
               case "pos_x":
               case "x_pos":
-                currentPainting.posX = float.Parse(value);
+                currentPainting.posX = float.Parse(value, cult);
                 break;
               case "y":
               case "posy":
               case "ypos":
               case "pos_y":
               case "y_pos":
-                currentPainting.posY = float.Parse(value);
+                currentPainting.posY = float.Parse(value, cult);
                 break;
               case "z":
               case "posz":
               case "zpos":
               case "pos_z":
               case "z_pos":
-                currentPainting.posZ = float.Parse(value);
+                currentPainting.posZ = float.Parse(value, cult);
                 break;
               case "size":
               case "scale":
-                currentPainting.size = float.Parse(value);
+                currentPainting.size = float.Parse(value, cult);
                 break;
               case "alpha":
                 currentPainting.alpha = byte.Parse(value);
