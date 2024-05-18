@@ -269,19 +269,21 @@ namespace Painting64 {
         romFile = args[0];
       }
 
-      Console.Write($"Write {paintings.Count} paintings to {romFile}. Is this okay? (Y/N)");
-      while (true) {
-        char c = Console.ReadKey(true).KeyChar;
-        if (c == 'n' || c == 'N') {
-          Console.WriteLine("\nok bye lmao");
-          return;
-        }
+      if (!args.Contains("--automatic")) {
+        Console.Write($"Write {paintings.Count} paintings to {romFile}. Is this okay? (Y/N)");
+        while (true) {
+          char c = Console.ReadKey(true).KeyChar;
+          if (c == 'n' || c == 'N') {
+            Console.WriteLine("\nok bye lmao");
+            return;
+          }
 
-        if (c == 'y' || c == 'Y') {
-          break;
+          if (c == 'y' || c == 'Y') {
+            break;
+          }
         }
+        Console.WriteLine();
       }
-      Console.WriteLine();
 
       if (!File.Exists(romFile)) {
         Console.WriteLine($"Provided ROM file {romFile} does not exist!");
@@ -361,8 +363,10 @@ namespace Painting64 {
         Console.WriteLine("fatal error\n" + e);
       }
 
-      Console.WriteLine("Press any key to exit");
-      Console.ReadKey(true);
+      if (!args.Contains("--automatic")) {
+        Console.WriteLine("Press any key to exit");
+        Console.ReadKey(true);
+      }
     }
   }
 }
