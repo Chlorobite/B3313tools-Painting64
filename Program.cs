@@ -1,6 +1,19 @@
 ﻿using System.Globalization;
 
 namespace Painting64 {
+  enum AreaVibeCheck {
+    Good,
+
+    Bad_areaBaseRomAddress,
+    Bad_usuallyZero,
+    Bad_usually2DCamBit,
+
+    Bad_painting_segmentedAddress_SegmentUnsupported,
+    Bad_painting_segmentedAddress,
+    Bad_painting_textureSegmentedAddress,
+    Bad_painting_textureSegmentedAddress2,
+  }
+
   class Painting {
     public uint romAddress;
     public uint segmentedAddress;
@@ -40,6 +53,44 @@ namespace Painting64 {
       uint original = (uint)((binary[dest] << 24) + (binary[dest + 1] << 16) + (binary[dest + 2] << 8) + binary[dest + 3]);
       byte[] bytes = MainClass.GetU32Bytes(original + u);
       Array.Copy(bytes, 0, binary, dest, bytes.Length);
+    }
+
+    /// Verifies the painting and the area's values
+    public AreaVibeCheck IsGoodForArea(uint areaBaseRomAddressStart, uint areaBaseRomAddressEnd, uint usuallyZero, uint usually2DCamBit, long romSize) {
+      // On area 15, A3's waterbox system BEEEbytes end up overwriting these unused values in the area table.
+      HashSet<uint> usuallyZero_PossibleValues = new() { 0x00000000, 0x42454545 };
+      // On area 15, the 'One-0xE-Bank-Per-Area-Code' checkbytes end up overwriting the 2D cam toggle in the area table.
+      HashSet<uint> usually2DCamBit_PossibleValues = new() { 0x00000000, 0x00000001, 0x4BC9189A };
+
+      // Verify area itself
+      if (areaBaseRomAddressStart == 0 || areaBaseRomAddressStart >= romSize)
+        return AreaVibeCheck.Bad_areaBaseRomAddress;
+      if (areaBaseRomAddressEnd == 0 || areaBaseRomAddressEnd >= romSize)
+        return AreaVibeCheck.Bad_areaBaseRomAddress;
+      if (!usuallyZero_PossibleValues.Contains(usuallyZero))
+        return AreaVibeCheck.Bad_usuallyZero;
+      if (!usually2DCamBit_PossibleValues.Contains(usually2DCamBit))
+        return AreaVibeCheck.Bad_usually2DCamBit;
+
+      // Verify painting values
+
+      // this value is used for writing within Painting64, so non-0x0E addresses require explicit support
+      if ((segmentedAddress & 0xFF000000) != 0x0E000000)
+        return AreaVibeCheck.Bad_painting_segmentedAddress_SegmentUnsupported;
+
+      if ((segmentedAddress & 0xFF000000) == 0x0E000000)
+        if (areaBaseRomAddressEnd <= areaBaseRomAddressStart + (segmentedAddress & 0x00FFFFFF))
+          return AreaVibeCheck.Bad_painting_segmentedAddress;
+
+      if ((textureSegmentedAddress & 0xFF000000) == 0x0E000000)
+        if (areaBaseRomAddressEnd <= areaBaseRomAddressStart + (textureSegmentedAddress & 0x00FFFFFF))
+          return AreaVibeCheck.Bad_painting_textureSegmentedAddress;
+
+      if ((textureSegmentedAddress2 & 0xFF000000) == 0x0E000000)
+        if (areaBaseRomAddressEnd <= areaBaseRomAddressStart + (textureSegmentedAddress2 & 0x00FFFFFF))
+          return AreaVibeCheck.Bad_painting_textureSegmentedAddress2;
+
+      return AreaVibeCheck.Good;
     }
 
     public void GenerateAndCommit(byte[] samplePaintingBinary, List<Painting> paintings) {
@@ -292,6 +343,7 @@ namespace Painting64 {
       // idk if this many levels can even exist but who knows lol
       uint[] levelStartAddresses = new uint[0x100];
       BinaryReader reader = new BinaryReader(File.OpenRead(romFile));
+      long romSize = reader.BaseStream.Length;
       int _i = 0;
       bool validLevel = true;
       while (validLevel) {
@@ -308,7 +360,9 @@ namespace Painting64 {
       }
 
       // extract ROM addresses from level+area IDs for the paintings
+      _i = -1;
       foreach (Painting painting in paintings) {
+        _i++;
         if (painting.levelID != 0) {
           uint baseAddress = levelStartAddresses[painting.levelID];
 
@@ -321,12 +375,49 @@ namespace Painting64 {
           reader.BaseStream.Seek(baseAddress + 0x5F00 + painting.areaID * 0x10, SeekOrigin.Begin);
           uint areaBaseRomAddressStart = U32FromBytes(reader.ReadBytes(4));
           uint areaBaseRomAddressEnd = U32FromBytes(reader.ReadBytes(4));
-          uint shouldBeZero1 = U32FromBytes(reader.ReadBytes(4));
-          uint shouldBeZero2 = U32FromBytes(reader.ReadBytes(4));
+          uint usuallyZero = U32FromBytes(reader.ReadBytes(4));
+          uint usually2DCamBit = U32FromBytes(reader.ReadBytes(4));
 
-          if (areaBaseRomAddressStart == 0 || areaBaseRomAddressEnd <= areaBaseRomAddressStart + (painting.segmentedAddress & 0x00FFFFFF) || shouldBeZero1 != 0 || shouldBeZero2 != 0) {
-            Console.WriteLine($"Area {painting.areaID} in level {painting.levelID} is not set up correctly??");
-            Console.WriteLine("(This currently only works on ROM manger areas which have an area table in segment 19)");
+          AreaVibeCheck result = painting.IsGoodForArea(areaBaseRomAddressStart, areaBaseRomAddressEnd, usuallyZero, usually2DCamBit, romSize);
+          if (result != AreaVibeCheck.Good) {
+            switch (result) {
+              case AreaVibeCheck.Bad_areaBaseRomAddress:
+                Console.WriteLine($"Validation of area {painting.areaID} in level {painting.levelID} failed:");
+                Console.WriteLine("no area, or ROM addresses are corrupted");
+                Console.WriteLine("(This currently only works on ROM manger areas which have an area table in segment 19)");
+                break;
+              case AreaVibeCheck.Bad_usuallyZero:
+                Console.WriteLine($"Validation of area {painting.areaID} in level {painting.levelID} failed:");
+                Console.WriteLine("Wrong 'usuallyZero' value");
+                Console.WriteLine("(This currently only works on ROM manger areas which have an area table in segment 19)");
+                break;
+              case AreaVibeCheck.Bad_usually2DCamBit:
+                Console.WriteLine($"Validation of area {painting.areaID} in level {painting.levelID} failed:");
+                Console.WriteLine("Wrong 'usually2DCamBit' value");
+                Console.WriteLine("(This currently only works on ROM manger areas which have an area table in segment 19)");
+                break;
+              case AreaVibeCheck.Bad_painting_segmentedAddress_SegmentUnsupported:
+                Console.WriteLine($"Validation of painting {_i} failed for area {painting.areaID} in level {painting.levelID}:");
+                Console.WriteLine("segmentedAddress must be in segment 0x0E (other segments require explicit support in Painting64)");
+                break;
+              case AreaVibeCheck.Bad_painting_segmentedAddress:
+                Console.WriteLine($"Validation of painting {_i} failed for area {painting.areaID} in level {painting.levelID}:");
+                Console.WriteLine("segmentedAddress escaped the area");
+                break;
+              case AreaVibeCheck.Bad_painting_textureSegmentedAddress:
+                Console.WriteLine($"Validation of painting {_i} failed for area {painting.areaID} in level {painting.levelID}:");
+                Console.WriteLine("textureSegmentedAddress escaped the area");
+                break;
+              case AreaVibeCheck.Bad_painting_textureSegmentedAddress2:
+                Console.WriteLine($"Validation of painting {_i} failed for area {painting.areaID} in level {painting.levelID}:");
+                Console.WriteLine("textureSegmentedAddress2 escaped the area");
+                break;
+              default:
+                Console.WriteLine($"Validation of painting {_i} failed for area {painting.areaID} in level {painting.levelID}:");
+                Console.WriteLine("unknown reason! (please meow at Chlorobyte for the rest of time for not explaining the reason)");
+                break;
+            }
+
             Console.ReadKey(true);
             return;
           }
