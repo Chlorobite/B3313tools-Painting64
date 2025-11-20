@@ -7,8 +7,6 @@ The confirmation and exit prompts can be bypassed with the `--automatic` flag.
 
 You must source your own target ROM & .config file pair, as well as `paintingcfg.txt`. We will not provide instructions on how to obtain this material.
 
-[Join the B33h1v3 Discord](https://discord.gg/n8PsDgVkBr) for discussion!
-
 ## Licensing
 This software is released under the BSD-3-Clause license. See LICENSE.md for more details.
 
